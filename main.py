@@ -112,13 +112,12 @@ def send_email(signal_date, price, test_mode=False):
     msg.set_content(f"Buy signal for {TICKER} on {signal_date} at price {price:.2f}")
     msg['Subject'] = f"{subject_prefix}Buy Signal Alert: {TICKER}"
     msg['From'] = ALERT_EMAIL
+    msg['To'] = ', '.join(RECIPIENT_EMAILS)
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(ALERT_EMAIL, EMAIL_PASSWORD)
-            for recipient in RECIPIENT_EMAILS:
-                msg['To'] = recipient
-                smtp.send_message(msg)
+            smtp.send_message(msg)
         st.success(f"✅ Email{' (test)' if test_mode else ''} sent to: {', '.join(RECIPIENT_EMAILS)}")
     except Exception as e:
         st.error(f"Failed to send email: {e}")
@@ -170,5 +169,4 @@ try:
 
 except Exception as e:
     import traceback
-    st.error(f"🚨 Error: {e}")
-    st.text(traceback.format_exc())
+    st.error(f"🚨 Error
