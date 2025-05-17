@@ -77,7 +77,7 @@ try:
     latest = df.iloc[-1]
 
     # Check and send alert if signal triggered today
-    if latest['Buy Signal'].item():
+    if bool(latest[['Buy Signal']].values[0]):
         send_email(df.index[-1].date(), latest['Close'])
         st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
 
