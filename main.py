@@ -21,9 +21,11 @@ from ta.volatility import BollingerBands
 
 # ---- CONFIG ----
 TICKER = "VWRL.AS"
-ALERT_EMAIL = os.getenv("ALERT_EMAIL")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
+
+# Support both Streamlit secrets and environment variables
+ALERT_EMAIL = st.secrets["ALERT_EMAIL"] if "ALERT_EMAIL" in st.secrets else os.getenv("ALERT_EMAIL")
+EMAIL_PASSWORD = st.secrets["EMAIL_PASSWORD"] if "EMAIL_PASSWORD" in st.secrets else os.getenv("EMAIL_PASSWORD")
+RECIPIENT_EMAIL = st.secrets["RECIPIENT_EMAIL"] if "RECIPIENT_EMAIL" in st.secrets else os.getenv("RECIPIENT_EMAIL")
 
 # ---- DATA FETCHING ----
 @st.cache_data
@@ -49,7 +51,7 @@ def get_data():
     df['Drawdown'] = (df['Close'] - df['ATH']) / df['ATH'] * 100
 
     # Signal
-    df['Buy Signal'] = ((df['RSI'] < 30) & (df['Close'] < df['BBL']) & (df['Drawdown'] < -20)).fillna(False)
+    df['Buy Signal'] = ((df['RSI'] < 30) & (df['Close'] < df['BBL']) & (df['Drawdown'] < -20)).fillna(False).astype(bool)
     return df
 
 # ---- ALERTING ----
@@ -76,8 +78,11 @@ try:
     df = get_data()
     latest = df.iloc[-1]
 
+    # DEBUG output for diagnosis
+    st.write("DEBUG: Latest Buy Signal Value:", latest['Buy Signal'])
+
     # Check and send alert if signal triggered today
-    if bool(latest['Buy Signal']) == True:
+    if pd.api.types.is_bool_dtype(type(latest['Buy Signal'])) and latest['Buy Signal'] == True:
         send_email(df.index[-1].date(), latest['Close'])
         st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
 
