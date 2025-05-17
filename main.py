@@ -169,4 +169,5 @@ try:
 
 except Exception as e:
     import traceback
-    st.error(f"🚨 Error
+    st.error(f"🚨 Error: {e}")
+    st.text(traceback.format_exc())
