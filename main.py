@@ -36,11 +36,11 @@ def get_data():
 
     # Indicators
     try:
-        df['RSI'] = RSIIndicator(close=df['Close'], window=14).rsi().squeeze()
+        df['RSI'] = RSIIndicator(close=df['Close'], window=14).rsi()
         bb = BollingerBands(close=df['Close'], window=20, window_dev=2)
-        df['BBL'] = bb.bollinger_lband().squeeze()
-        df['BBM'] = bb.bollinger_mavg().squeeze()
-        df['BBU'] = bb.bollinger_hband().squeeze()
+        df['BBL'] = bb.bollinger_lband()
+        df['BBM'] = bb.bollinger_mavg()
+        df['BBU'] = bb.bollinger_hband()
     except Exception as e:
         raise ValueError(f"Indicator calculation failed: {e}")
 
@@ -49,7 +49,7 @@ def get_data():
     df['Drawdown'] = (df['Close'] - df['ATH']) / df['ATH'] * 100
 
     # Signal
-    df['Buy Signal'] = ((df['RSI'] < 30) & (df['Close'] < df['BBL']) & (df['Drawdown'] < -20)).fillna(False).astype(bool)
+    df['Buy Signal'] = ((df['RSI'] < 30) & (df['Close'] < df['BBL']) & (df['Drawdown'] < -20)).fillna(False)
     return df
 
 # ---- ALERTING ----
@@ -77,7 +77,7 @@ try:
     latest = df.iloc[-1]
 
     # Check and send alert if signal triggered today
-    if latest['Buy Signal'].item() == True:
+    if bool(latest['Buy Signal']) == True:
         send_email(df.index[-1].date(), latest['Close'])
         st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
 
