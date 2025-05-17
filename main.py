@@ -31,19 +31,26 @@ RECIPIENT_EMAIL = st.secrets["RECIPIENT_EMAIL"] if "RECIPIENT_EMAIL" in st.secre
 @st.cache_data
 def get_data():
     df = yf.download(TICKER, period="1y", interval="1d")
-    if df.empty or df['Close'].isnull().all():
-        raise ValueError("Downloaded data is empty or invalid. Please check ticker symbol or data source.")
+    st.write("DEBUG: Raw downloaded data:", df.head())
+
+    if df.empty:
+        raise ValueError("Downloaded data is empty. Please check ticker symbol or data source.")
+
+    if df['Close'].isnull().values.all():
+        raise ValueError("All Close values are NaN. Check if the data was downloaded correctly.")
 
     df.dropna(inplace=True)
 
     # Indicators
     try:
+        df['Close'] = df['Close'].astype(float)  # Ensure 1D
         df['RSI'] = RSIIndicator(close=df['Close'], window=14).rsi()
         bb = BollingerBands(close=df['Close'], window=20, window_dev=2)
         df['BBL'] = bb.bollinger_lband()
         df['BBM'] = bb.bollinger_mavg()
         df['BBU'] = bb.bollinger_hband()
     except Exception as e:
+        st.write("DEBUG: RSI or BB inputs:", df['Close'].shape, type(df['Close']))
         raise ValueError(f"Indicator calculation failed: {e}")
 
     # Drawdown
@@ -51,7 +58,12 @@ def get_data():
     df['Drawdown'] = (df['Close'] - df['ATH']) / df['ATH'] * 100
 
     # Signal
-    df['Buy Signal'] = ((df['RSI'] < 30) & (df['Close'] < df['BBL']) & (df['Drawdown'] < -20)).fillna(False).astype(bool)
+    try:
+        signal = (df['RSI'] < 30) & (df['Close'] < df['BBL']) & (df['Drawdown'] < -20)
+        df['Buy Signal'] = signal.fillna(False).astype(bool)
+    except Exception as e:
+        st.write("DEBUG: Signal Generation Error", e)
+        raise
     return df
 
 # ---- ALERTING ----
@@ -78,13 +90,19 @@ try:
     df = get_data()
     latest = df.iloc[-1]
 
-    # DEBUG output for diagnosis
-    st.write("DEBUG: Latest Buy Signal Value:", latest['Buy Signal'])
+    st.write("DEBUG: latest row:", latest.to_dict())
+    st.write("DEBUG: Buy Signal raw type:", type(latest['Buy Signal']))
 
-    # Check and send alert if signal triggered today
-    if pd.api.types.is_bool_dtype(type(latest['Buy Signal'])) and latest['Buy Signal'] == True:
-        send_email(df.index[-1].date(), latest['Close'])
-        st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
+    try:
+        signal_value = latest['Buy Signal']
+        if isinstance(signal_value, (pd.Series, pd.DataFrame)):
+            signal_value = signal_value.values[0]
+        if bool(signal_value):
+            send_email(df.index[-1].date(), latest['Close'])
+            st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
+    except Exception as signal_error:
+        st.write("DEBUG: Signal comparison error", signal_error)
+        raise
 
     # Plot chart
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -102,4 +120,6 @@ try:
     st.dataframe(df[df['Buy Signal']][['Close', 'RSI', 'BBL', 'Drawdown']])
 
 except Exception as e:
+    import traceback
     st.error(f"🚨 Error: {e}")
+    st.text(traceback.format_exc())
