@@ -15,9 +15,12 @@ import streamlit as st
 import smtplib
 from email.message import EmailMessage
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import os
 from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
+import plotly.graph_objects as go
+import plotly.express as px
 
 # ---- CONFIG ----
 TICKER = "VWRL.AS"
@@ -25,7 +28,11 @@ TICKER = "VWRL.AS"
 # Support both Streamlit secrets and environment variables
 ALERT_EMAIL = st.secrets["ALERT_EMAIL"] if "ALERT_EMAIL" in st.secrets else os.getenv("ALERT_EMAIL")
 EMAIL_PASSWORD = st.secrets["EMAIL_PASSWORD"] if "EMAIL_PASSWORD" in st.secrets else os.getenv("EMAIL_PASSWORD")
-RECIPIENT_EMAIL = st.secrets["RECIPIENT_EMAIL"] if "RECIPIENT_EMAIL" in st.secrets else os.getenv("RECIPIENT_EMAIL")
+RECIPIENT_EMAILS = (
+    st.secrets["RECIPIENT_EMAILS"].split(",") if "RECIPIENT_EMAILS" in st.secrets 
+    else os.getenv("RECIPIENT_EMAILS", "").split(",")
+)
+RECIPIENT_EMAILS = [email.strip() for email in RECIPIENT_EMAILS if email.strip()]
 
 DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
 
@@ -104,16 +111,17 @@ def send_email(signal_date, price, test_mode=False):
     msg.set_content(f"Buy signal for {TICKER} on {signal_date} at price {price:.2f}")
     msg['Subject'] = f"Buy Signal Alert: {TICKER}"
     msg['From'] = ALERT_EMAIL
-    msg['To'] = RECIPIENT_EMAIL
 
     if test_mode:
-        st.info(f"[TEST MODE] Would send email: {msg['Subject']} - {msg.get_content()}")
+        st.info(f"[TEST MODE] Would send email to {', '.join(RECIPIENT_EMAILS)}: {msg['Subject']} - {msg.get_content()}")
         return
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(ALERT_EMAIL, EMAIL_PASSWORD)
-            smtp.send_message(msg)
+            for recipient in RECIPIENT_EMAILS:
+                msg['To'] = recipient
+                smtp.send_message(msg)
     except Exception as e:
         st.error(f"Failed to send email: {e}")
 
@@ -122,11 +130,10 @@ st.set_page_config(page_title="VWRL Strategy Dashboard", layout="wide")
 st.title("📈 VWRL Buy Signal Strategy")
 st.markdown("RSI < 30, Price < Lower Bollinger Band, and >20% Drawdown from All-Time High")
 
-test_mode = False
-force_email = False
-if DEBUG_MODE:
-    test_mode = st.sidebar.checkbox("🔍 Test Alert Mode", value=False)
-    force_email = st.sidebar.button("📧 Force Send Test Email")
+sidebar_expander = st.sidebar.expander("🔧 Developer Tools")
+with sidebar_expander:
+    test_mode = st.checkbox("🔍 Test Alert Mode", value=False)
+    force_email = st.button("📧 Force Send Test Email")
 
 try:
     df = get_data()
@@ -150,15 +157,16 @@ try:
     except Exception as signal_error:
         raise
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(df.index, df['Close'], label='Close')
-    ax.plot(df.index, df['BBL'], label='Lower BB', linestyle='--')
-    ax.plot(df.index, df['BBM'], label='Middle BB', linestyle='--')
-    ax.plot(df.index, df['BBU'], label='Upper BB', linestyle='--')
-    ax.scatter(df[df['Buy Signal']].index, df[df['Buy Signal']]['Close'], label='Buy Signal', color='green', marker='^', s=100)
-    ax.set_title(f"{TICKER} Price Chart with Indicators")
-    ax.legend()
-    st.pyplot(fig)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Close'))
+    fig.add_trace(go.Scatter(x=df.index, y=df['BBL'], mode='lines', name='Lower BB', line=dict(dash='dot')))
+    fig.add_trace(go.Scatter(x=df.index, y=df['BBM'], mode='lines', name='Middle BB', line=dict(dash='dot')))
+    fig.add_trace(go.Scatter(x=df.index, y=df['BBU'], mode='lines', name='Upper BB', line=dict(dash='dot')))
+    fig.add_trace(go.Scatter(x=df[df['Buy Signal']].index, y=df[df['Buy Signal']]['Close'], mode='markers', name='Buy Signal', marker=dict(color='green', size=10, symbol='triangle-up')))
+
+    fig.update_layout(title=f"{TICKER} Price Chart with Indicators (Interactive)", xaxis_title="Date", yaxis_title="Price", hovermode="x unified")
+
+    st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Buy Signal Data")
     st.dataframe(df[df['Buy Signal']][['Close', 'RSI', 'BBL', 'Drawdown']])

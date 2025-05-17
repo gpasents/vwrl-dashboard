@@ -364,3 +364,4 @@ xml-python==0.4.3
 yarl==1.20.0
 zipp==3.21.0
 zopfli==0.2.3.post1
+plotly>=5.0.0
