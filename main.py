@@ -11,12 +11,13 @@ It also sends email alerts when all three conditions are met.
 
 import yfinance as yf
 import pandas as pd
-import pandas_ta as ta
 import streamlit as st
 import smtplib
 from email.message import EmailMessage
 import matplotlib.pyplot as plt
 import os
+from ta.momentum import RSIIndicator
+from ta.volatility import BollingerBands
 
 # ---- CONFIG ----
 TICKER = "VWRL.AS"
@@ -29,12 +30,20 @@ RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
 def get_data():
     df = yf.download(TICKER, period="1y", interval="1d")
     df.dropna(inplace=True)
-    df['RSI'] = ta.rsi(df['Close'], length=14)
-    bb = ta.bbands(df['Close'], length=20)
-    df = pd.concat([df, bb], axis=1)
+
+    # Indicators
+    df['RSI'] = RSIIndicator(close=df['Close'], window=14).rsi()
+    bb = BollingerBands(close=df['Close'], window=20, window_dev=2)
+    df['BBL'] = bb.bollinger_lband()
+    df['BBM'] = bb.bollinger_mavg()
+    df['BBU'] = bb.bollinger_hband()
+
+    # Drawdown
     df['ATH'] = df['Close'].cummax()
     df['Drawdown'] = (df['Close'] - df['ATH']) / df['ATH'] * 100
-    df['Buy Signal'] = (df['RSI'] < 30) & (df['Close'] < df['BBL_20_2.0']) & (df['Drawdown'] < -20)
+
+    # Signal
+    df['Buy Signal'] = (df['RSI'] < 30) & (df['Close'] < df['BBL']) & (df['Drawdown'] < -20)
     return df
 
 # ---- ALERTING ----
@@ -68,9 +77,9 @@ if latest['Buy Signal']:
 # Plot chart
 fig, ax = plt.subplots(figsize=(12, 6))
 ax.plot(df.index, df['Close'], label='Close')
-ax.plot(df.index, df['BBL_20_2.0'], label='Lower BB', linestyle='--')
-ax.plot(df.index, df['BBM_20_2.0'], label='Middle BB', linestyle='--')
-ax.plot(df.index, df['BBU_20_2.0'], label='Upper BB', linestyle='--')
+ax.plot(df.index, df['BBL'], label='Lower BB', linestyle='--')
+ax.plot(df.index, df['BBM'], label='Middle BB', linestyle='--')
+ax.plot(df.index, df['BBU'], label='Upper BB', linestyle='--')
 ax.scatter(df[df['Buy Signal']].index, df[df['Buy Signal']]['Close'], label='Buy Signal', color='green', marker='^', s=100)
 ax.set_title(f"{TICKER} Price Chart with Indicators")
 ax.legend()
@@ -78,4 +87,4 @@ st.pyplot(fig)
 
 # Show DataFrame
 st.subheader("Buy Signal Data")
-st.dataframe(df[df['Buy Signal']][['Close', 'RSI', 'BBL_20_2.0', 'Drawdown']])
+st.dataframe(df[df['Buy Signal']][['Close', 'RSI', 'BBL', 'Drawdown']])
