@@ -108,13 +108,10 @@ def get_data():
 # ---- ALERTING ----
 def send_email(signal_date, price, test_mode=False):
     msg = EmailMessage()
+    subject_prefix = "[TEST] " if test_mode else ""
     msg.set_content(f"Buy signal for {TICKER} on {signal_date} at price {price:.2f}")
-    msg['Subject'] = f"Buy Signal Alert: {TICKER}"
+    msg['Subject'] = f"{subject_prefix}Buy Signal Alert: {TICKER}"
     msg['From'] = ALERT_EMAIL
-
-    if test_mode:
-        st.info(f"[TEST MODE] Would send email to {', '.join(RECIPIENT_EMAILS)}: {msg['Subject']} - {msg.get_content()}")
-        return
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
@@ -122,6 +119,7 @@ def send_email(signal_date, price, test_mode=False):
             for recipient in RECIPIENT_EMAILS:
                 msg['To'] = recipient
                 smtp.send_message(msg)
+        st.success(f"✅ Email{' (test)' if test_mode else ''} sent to: {', '.join(RECIPIENT_EMAILS)}")
     except Exception as e:
         st.error(f"Failed to send email: {e}")
 
@@ -151,8 +149,7 @@ try:
                 st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
 
         if force_email:
-            send_email(df.index[-1].date(), latest['Close'], test_mode=False)
-            st.success("✅ Test email sent.")
+            send_email(df.index[-1].date(), latest['Close'], test_mode=True)
 
     except Exception as signal_error:
         raise
