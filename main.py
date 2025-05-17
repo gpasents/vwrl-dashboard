@@ -49,8 +49,7 @@ def get_data():
     df['Drawdown'] = (df['Close'] - df['ATH']) / df['ATH'] * 100
 
     # Signal
-    df['Buy Signal'] = (df['RSI'] < 30) & (df['Close'] < df['BBL']) & (df['Drawdown'] < -20)
-    df['Buy Signal'] = df['Buy Signal'].fillna(False)
+    df['Buy Signal'] = ((df['RSI'] < 30) & (df['Close'] < df['BBL']) & (df['Drawdown'] < -20)).fillna(False).astype(bool)
     return df
 
 # ---- ALERTING ----
@@ -78,7 +77,7 @@ try:
     latest = df.iloc[-1]
 
     # Check and send alert if signal triggered today
-    if bool(latest['Buy Signal']):
+    if latest['Buy Signal'] == True:
         send_email(df.index[-1].date(), latest['Close'])
         st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
 
