@@ -36,11 +36,11 @@ def get_data():
 
     # Indicators
     try:
-        df['RSI'] = RSIIndicator(close=df['Close'], window=14).rsi()
+        df['RSI'] = RSIIndicator(close=df['Close'], window=14).rsi().squeeze()
         bb = BollingerBands(close=df['Close'], window=20, window_dev=2)
-        df['BBL'] = bb.bollinger_lband()
-        df['BBM'] = bb.bollinger_mavg()
-        df['BBU'] = bb.bollinger_hband()
+        df['BBL'] = bb.bollinger_lband().squeeze()
+        df['BBM'] = bb.bollinger_mavg().squeeze()
+        df['BBU'] = bb.bollinger_hband().squeeze()
     except Exception as e:
         raise ValueError(f"Indicator calculation failed: {e}")
 
