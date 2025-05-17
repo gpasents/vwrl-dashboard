@@ -127,28 +127,17 @@ st.set_page_config(page_title="VWRL Strategy Dashboard", layout="wide")
 st.title("📈 VWRL Buy Signal Strategy")
 st.markdown("RSI < 30, Price < Lower Bollinger Band, and >20% Drawdown from All-Time High")
 
-sidebar_expander = st.sidebar.expander("🔧 Developer Tools")
-with sidebar_expander:
-    test_mode = st.checkbox("🔍 Test Alert Mode", value=False)
-    force_email = st.button("📧 Force Send Test Email")
-
 try:
     df = get_data()
     latest = df.iloc[-1]
 
     try:
-        if test_mode:
-            send_email(df.index[-1].date(), latest['Close'], test_mode=True)
-        else:
-            signal_value = latest['Buy Signal']
-            if isinstance(signal_value, (pd.Series, pd.DataFrame)):
-                signal_value = signal_value.values[0]
-            if bool(signal_value):
-                send_email(df.index[-1].date(), latest['Close'], test_mode=False)
-                st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
-
-        if force_email:
-            send_email(df.index[-1].date(), latest['Close'], test_mode=True)
+        signal_value = latest['Buy Signal']
+        if isinstance(signal_value, (pd.Series, pd.DataFrame)):
+            signal_value = signal_value.values[0]
+        if bool(signal_value):
+            send_email(df.index[-1].date(), latest['Close'], test_mode=False)
+            st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
 
     except Exception as signal_error:
         raise
