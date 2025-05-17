@@ -29,14 +29,20 @@ RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
 @st.cache_data
 def get_data():
     df = yf.download(TICKER, period="1y", interval="1d")
+    if df.empty or df['Close'].isnull().all():
+        raise ValueError("Downloaded data is empty or invalid. Please check ticker symbol or data source.")
+
     df.dropna(inplace=True)
 
     # Indicators
-    df['RSI'] = RSIIndicator(close=df['Close'], window=14).rsi()
-    bb = BollingerBands(close=df['Close'], window=20, window_dev=2)
-    df['BBL'] = bb.bollinger_lband()
-    df['BBM'] = bb.bollinger_mavg()
-    df['BBU'] = bb.bollinger_hband()
+    try:
+        df['RSI'] = RSIIndicator(close=df['Close'], window=14).rsi()
+        bb = BollingerBands(close=df['Close'], window=20, window_dev=2)
+        df['BBL'] = bb.bollinger_lband()
+        df['BBM'] = bb.bollinger_mavg()
+        df['BBU'] = bb.bollinger_hband()
+    except Exception as e:
+        raise ValueError(f"Indicator calculation failed: {e}")
 
     # Drawdown
     df['ATH'] = df['Close'].cummax()
@@ -66,25 +72,29 @@ st.set_page_config(page_title="VWRL Strategy Dashboard", layout="wide")
 st.title("📈 VWRL Buy Signal Strategy")
 st.markdown("RSI < 30, Price < Lower Bollinger Band, and >20% Drawdown from All-Time High")
 
-df = get_data()
-latest = df.iloc[-1]
+try:
+    df = get_data()
+    latest = df.iloc[-1]
 
-# Check and send alert if signal triggered today
-if latest['Buy Signal']:
-    send_email(df.index[-1].date(), latest['Close'])
-    st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
+    # Check and send alert if signal triggered today
+    if latest['Buy Signal']:
+        send_email(df.index[-1].date(), latest['Close'])
+        st.success(f"✅ Buy Signal Triggered on {df.index[-1].date()}!")
 
-# Plot chart
-fig, ax = plt.subplots(figsize=(12, 6))
-ax.plot(df.index, df['Close'], label='Close')
-ax.plot(df.index, df['BBL'], label='Lower BB', linestyle='--')
-ax.plot(df.index, df['BBM'], label='Middle BB', linestyle='--')
-ax.plot(df.index, df['BBU'], label='Upper BB', linestyle='--')
-ax.scatter(df[df['Buy Signal']].index, df[df['Buy Signal']]['Close'], label='Buy Signal', color='green', marker='^', s=100)
-ax.set_title(f"{TICKER} Price Chart with Indicators")
-ax.legend()
-st.pyplot(fig)
+    # Plot chart
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(df.index, df['Close'], label='Close')
+    ax.plot(df.index, df['BBL'], label='Lower BB', linestyle='--')
+    ax.plot(df.index, df['BBM'], label='Middle BB', linestyle='--')
+    ax.plot(df.index, df['BBU'], label='Upper BB', linestyle='--')
+    ax.scatter(df[df['Buy Signal']].index, df[df['Buy Signal']]['Close'], label='Buy Signal', color='green', marker='^', s=100)
+    ax.set_title(f"{TICKER} Price Chart with Indicators")
+    ax.legend()
+    st.pyplot(fig)
 
-# Show DataFrame
-st.subheader("Buy Signal Data")
-st.dataframe(df[df['Buy Signal']][['Close', 'RSI', 'BBL', 'Drawdown']])
+    # Show DataFrame
+    st.subheader("Buy Signal Data")
+    st.dataframe(df[df['Buy Signal']][['Close', 'RSI', 'BBL', 'Drawdown']])
+
+except Exception as e:
+    st.error(f"🚨 Error: {e}")
