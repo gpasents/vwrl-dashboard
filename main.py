@@ -39,7 +39,7 @@ DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
 # ---- DATA FETCHING ----
 @st.cache_data
 def get_data():
-    df = yf.download(TICKER, period="1y", interval="1d")
+    df = yf.download(TICKER, period="max", interval="1d")
 
     if df.empty:
         raise ValueError("Downloaded data is empty. Please check ticker symbol or data source.")
@@ -149,7 +149,23 @@ try:
     fig.add_trace(go.Scatter(x=df.index, y=df['BBU'], mode='lines', name='Upper BB', line=dict(dash='dot')))
     fig.add_trace(go.Scatter(x=df[df['Buy Signal']].index, y=df[df['Buy Signal']]['Close'], mode='markers', name='Buy Signal', marker=dict(color='green', size=10, symbol='triangle-up')))
 
-    fig.update_layout(title=f"{TICKER} Price Chart with Indicators (Interactive)", xaxis_title="Date", yaxis_title="Price", hovermode="x unified")
+    # Add date range selector and range slider to the x-axis
+    fig.update_layout(
+        title=f"{TICKER} Price Chart with Indicators (Interactive)",
+        xaxis_title="Date",
+        yaxis_title="Price",
+        hovermode="x unified",
+        xaxis=dict(
+            rangeselector=dict(
+                buttons=list([
+                    dict(count=1, label="YTD", step="year", stepmode="todate"),
+                    dict(step="all")
+                ])
+            ),
+            rangeslider=dict(visible=True),
+            type="date"
+        )
+    )
 
     st.plotly_chart(fig, use_container_width=True)
 
