@@ -127,7 +127,7 @@ st.set_page_config(page_title="VWRL Strategy Dashboard", layout="wide")
 # Attribution header
 st.markdown(
     """
-    ## 🔗 Based on Research by [Christos Pasentsis](https://www.linkedin.com/in/christos-pasentsis/)
+    ## 🔗 Based on Research by [Christos Pasentsis](https://www.linkedin.com/in/christos-pasentsis-8b817819b/)
     Original idea and strategy explained in this LinkedIn post:
     <iframe src="https://www.linkedin.com/embed/feed/update/urn:li:share:7324805300991983617?collapsed=1" 
             height="474" width="504" frameborder="0" allowfullscreen="" 
