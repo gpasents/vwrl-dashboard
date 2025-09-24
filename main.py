@@ -124,6 +124,17 @@ def send_email(signal_date, price, test_mode=False):
 
 # ---- STREAMLIT UI ----
 st.set_page_config(page_title="VWRL Strategy Dashboard", layout="wide")
+# Attribution header
+st.markdown(
+    """
+    ## 🔗 Based on Research by [Christos Pasentsis](https://www.linkedin.com/in/christos-pasentsis/)
+    Original idea and strategy explained in this LinkedIn post:
+    <iframe src="https://www.linkedin.com/embed/feed/update/urn:li:share:7324805300991983617?collapsed=1" 
+            height="474" width="504" frameborder="0" allowfullscreen="" 
+            title="Embedded post"></iframe>
+    """,
+    unsafe_allow_html=True
+)
 st.title("📈 VWRL Buy Signal Strategy")
 st.markdown("RSI < 30, Price < Lower Bollinger Band, and >20% Drawdown from All-Time High")
 
